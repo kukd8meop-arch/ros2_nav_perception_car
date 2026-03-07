@@ -1,3 +1,22 @@
+build/
+install/
+log/
+*/build/
+*/install/
+*/log/
+COLCON_IGNORE
+
+# ROS2 日志与数据包
+*.bag
+*.db
+*.pcd
+*.ply
+*.rosinstall
+
+# 调试/临时文件
+*.log
+core
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[codz]
