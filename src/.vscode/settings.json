@@ -1,0 +1,11 @@
+{
+    "python.analysis.extraPaths": [
+        "./driver/sdk"
+    ],
+    "ROS2.distro": "humble",
+    "python.autoComplete.extraPaths": [
+        "/opt/ros/humble/lib/python3.10/site-packages",
+        "/opt/ros/humble/local/lib/python3.10/dist-packages"
+    ],
+    "cmake.sourceDirectory": "/home/abc/ROS-Orin NX/配套资料/3 源码资料/ROS2/src/src/interfaces"
+}
