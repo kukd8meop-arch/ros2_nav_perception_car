@@ -22,14 +22,30 @@ include_directories(
   include
 )
 
-link_directories(
-  lib/arm64
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|AMD64)$")
+  set(XF_MIC_ARCH_LIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lib/x64")
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64|arm64|ARM64)$")
+  set(XF_MIC_ARCH_LIB_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lib/arm64")
+else()
+  message(FATAL_ERROR "Unsupported architecture: ${CMAKE_SYSTEM_PROCESSOR}")
+endif()
+
+find_library(OFFLINE_RECORD_LIB
+  NAMES offline_record_lib
+  PATHS ${XF_MIC_ARCH_LIB_DIR}
+  NO_DEFAULT_PATH
 )
+
+if(NOT OFFLINE_RECORD_LIB)
+  message(FATAL_ERROR "offline_record_lib not found in ${XF_MIC_ARCH_LIB_DIR}")
+endif()
+
+message(STATUS "xf_mic_asr_offline using architecture '${CMAKE_SYSTEM_PROCESSOR}' and library path '${XF_MIC_ARCH_LIB_DIR}'")
 
 # Create the executable target
 add_executable(voice_control src/voice_control.cpp)
 ament_target_dependencies(voice_control rclcpp std_msgs xf_mic_asr_offline_msgs ros_robot_controller_msgs)
-target_link_libraries(voice_control ${catkin_LIBRARIES} offline_record_lib rt dl pthread stdc++ asound)
+target_link_libraries(voice_control ${OFFLINE_RECORD_LIB} rt dl pthread stdc++ asound)
 install(TARGETS voice_control
   RUNTIME DESTINATION lib/${PROJECT_NAME}
 )

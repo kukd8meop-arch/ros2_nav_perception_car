@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <robot name="rosorin" xmlns:xacro="http://ros.org/wiki/xacro">
     <xacro:property name="M_PI" value="3.1415926535897931"/>
+  <xacro:arg name="odom_frame" default="odom"/>
+  <xacro:arg name="base_frame" default="base_footprint"/>
+  <xacro:arg name="lidar_frame" default="lidar_frame"/>
     <xacro:include filename="$(find rosorin_description)/urdf/rosorin.xacro"/>
     <gazebo>
         <plugin name="gazebo_controller" filename="libgazebo_ros_planar_move.so">
