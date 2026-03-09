@@ -1,7 +1,6 @@
 import os
 from ament_index_python.packages import get_package_share_directory
 
-<<<<<<< HEAD
 from launch_ros.actions import PushRosNamespace       # 给组内所有节点加命名空间前缀，多机器人隔离用
 from launch import LaunchDescription, LaunchService
 from launch.substitutions import LaunchConfiguration  # launch 参数的占位符，perform(context) 后变成真实字符串
@@ -41,48 +40,17 @@ def launch_setup(context):
     map_frame    = f'{frame_prefix}map'
     odom_frame   = f'{frame_prefix}odom'
     base_frame   = f'{frame_prefix}base_footprint'
-=======
-from launch_ros.actions import PushRosNamespace
-from launch import LaunchDescription, LaunchService
-from launch.substitutions import LaunchConfiguration
-from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, GroupAction, OpaqueFunction, TimerAction
-
-def launch_setup(context):
-    compiled = os.environ.get('need_compile', 'False')
-    enable_save = LaunchConfiguration('enable_save', default='true').perform(context)
-    slam_method = LaunchConfiguration('slam_method', default='slam_toolbox').perform(context)
-    sim = LaunchConfiguration('sim', default='false').perform(context)
-    master_name = LaunchConfiguration('master_name', default=os.environ.get('MASTER', '/')).perform(context)
-    robot_name = LaunchConfiguration('robot_name', default=os.environ.get('HOST', '/')).perform(context)
-
-    enable_save_arg = DeclareLaunchArgument('enable_save', default_value=enable_save)
-    slam_method_arg = DeclareLaunchArgument('slam_method', default_value=slam_method)
-    sim_arg = DeclareLaunchArgument('sim', default_value=sim)
-    master_name_arg = DeclareLaunchArgument('master_name', default_value=master_name)
-    robot_name_arg = DeclareLaunchArgument('robot_name', default_value=robot_name)
-
-    frame_prefix = '' if robot_name == '/' else f'{robot_name}/'
-    use_sim_time = 'true' if sim == 'true' else 'false'
-    map_frame = f'{frame_prefix}map'
-    odom_frame = f'{frame_prefix}odom'
-    base_frame = f'{frame_prefix}base_footprint'
->>>>>>> 53588069a7a4986dfeeaf6de6cf4822d10442588
 
     if compiled == 'True':
         slam_package_path = get_package_share_directory('slam')
     else:
         slam_package_path = '/home/ubuntu/ros2_ws/src/slam'
 
-<<<<<<< HEAD
     # 基座 launch：启动底盘驱动 + 传感器 + EKF（对应 slam/launch/include/robot.launch.py）
-=======
->>>>>>> 53588069a7a4986dfeeaf6de6cf4822d10442588
     base_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(slam_package_path, 'launch/include/robot.launch.py')),
         launch_arguments={
-<<<<<<< HEAD
             'sim':         sim,
             'master_name': master_name,
             'robot_name':  robot_name
@@ -91,32 +59,16 @@ def launch_setup(context):
 
     # SLAM launch：启动 SLAM Toolbox 建图节点（对应 slam/launch/include/slam_base.launch.py）
     # scan_topic 必须和雷达驱动实际发布的话题名一致，不一致会报 TF 错误
-=======
-            'sim': sim,
-            'master_name': master_name,
-            'robot_name': robot_name
-        }.items(),
-    )
-
->>>>>>> 53588069a7a4986dfeeaf6de6cf4822d10442588
     slam_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(slam_package_path, 'launch/include/slam_base.launch.py')),
         launch_arguments={
             'use_sim_time': use_sim_time,
-<<<<<<< HEAD
             'map_frame':    map_frame,
             'odom_frame':   odom_frame,
             'base_frame':   base_frame,
             'scan_topic':   f'{frame_prefix}scan_raw',  # 雷达话题名变了就改这里
             'enable_save':  enable_save
-=======
-            'map_frame': map_frame,
-            'odom_frame': odom_frame,
-            'base_frame': base_frame,
-            'scan_topic': f'{frame_prefix}scan_raw',  # Using scan_raw topic
-            'enable_save': enable_save
->>>>>>> 53588069a7a4986dfeeaf6de6cf4822d10442588
         }.items(),
     )
 
@@ -124,21 +76,14 @@ def launch_setup(context):
         bringup_launch = GroupAction(
             actions=[
                 PushRosNamespace(robot_name),
-<<<<<<< HEAD
                 base_launch,              # 立即启动底盘 + 传感器 + EKF
                 TimerAction(
                     period=10.0,          # 延迟 10 秒，等底盘和雷达就绪后再启动 SLAM
-=======
-                base_launch,
-                TimerAction(
-                    period=10.0,
->>>>>>> 53588069a7a4986dfeeaf6de6cf4822d10442588
                     actions=[slam_launch],
                 ),
             ]
         )
 
-<<<<<<< HEAD
     # 返回参数声明 + 启动动作（参数声明必须包含在返回列表里才能被命令行识别）
     return [sim_arg, master_name_arg, robot_name_arg, slam_method_arg, bringup_launch]
 
@@ -146,22 +91,13 @@ def launch_setup(context):
 def generate_launch_description():
     # OpaqueFunction 的作用：让 launch_setup 在运行时才执行
     # 这样 perform(context) 才能拿到真实的参数值，而不是占位符字符串
-=======
-    return [sim_arg, master_name_arg, robot_name_arg, slam_method_arg, bringup_launch]
-
-def generate_launch_description():
->>>>>>> 53588069a7a4986dfeeaf6de6cf4822d10442588
     return LaunchDescription([
         OpaqueFunction(function=launch_setup)
     ])
 
-<<<<<<< HEAD
 
 if __name__ == '__main__':
     # 直接用 python 运行此文件时的入口（非 ros2 launch 命令）
-=======
-if __name__ == '__main__':
->>>>>>> 53588069a7a4986dfeeaf6de6cf4822d10442588
     ld = generate_launch_description()
 
     ls = LaunchService()
