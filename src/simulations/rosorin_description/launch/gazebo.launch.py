@@ -60,48 +60,51 @@ def generate_launch_description():
     )
 
     # 调用 xacro 生成带 Gazebo 插件的 robot_description，并把关键 frame 传入模型。
-    robot_description = Command([
-        'xacro ',
-        xacro_file,
-        ' odom_frame:=', odom_frame,
-        ' base_frame:=', base_frame,
-        ' lidar_frame:=', lidar_frame,
+    robot_description = Command([  # Command函数 让系统在后台执行终端命令 []里面是拼接的终端命令
+        'xacro ', # 调用 xacro 编译工具
+        xacro_file, # 变量 → 小车模型文件路径
+        ' odom_frame:=', odom_frame, # 传参 → 把里程计坐标系名称传给模型
+        ' base_frame:=', base_frame, # 传参 → 把小车底盘坐标系名称传给模型
+        ' lidar_frame:=', lidar_frame, # 传参 → 把激光雷达坐标系名称传给模型
     ])
 
-    # 启动 joint_state_publisher，给机器人模型提供基础关节状态。
-    joint_state_publisher = Node(
-        package='joint_state_publisher',
-        executable='joint_state_publisher',
-        name='joint_state_publisher',
-        output='screen',
-        parameters=[{'use_sim_time': use_sim_time}],
+    # 启动 joint_state_publisher，给机器人模型提供基础关节状态，如车轮、关节现在转了多少度
+    joint_state_publisher = Node( # 启动一个 ROS2 功能程序
+        package='joint_state_publisher',  # 官方现成的功能包
+        executable='joint_state_publisher',  # 运行这个包里的主程序
+        name='joint_state_publisher',  # 给程序起个名字，方便系统识别
+        output='screen',  # 把日志打印到终端屏幕，出错了能看到
+        parameters=[{'use_sim_time': use_sim_time}],  # 用Gazebo 仿真时间，不用电脑系统时间
     )
 
-    # 启动 robot_state_publisher，把 robot_description 发布为 TF 树。
-    robot_state_publisher = Node(
-        package='robot_state_publisher',
-        executable='robot_state_publisher',
-        name='robot_state_publisher',
-        output='screen',
+    # 启动 robot_state_publisher，根据joint_state_publisher的角度数据自动计算出：底盘、车轮、雷达、摄像头的坐标关系，并把 robot_description 发布为 TF 树。
+    robot_state_publisher = Node(  # 启动第二个核心程序
+        package='robot_state_publisher',  # 官方现成的功能包
+        executable='robot_state_publisher',  # 运行这个包里的主程序
+        name='robot_state_publisher',  # 给程序起个名字，方便系统识别
+        output='screen',  # 把日志打印到终端屏幕，出错了能看到
         parameters=[{
-            'robot_description': robot_description,
+            'robot_description': robot_description, # 传入之前用 xacro 生成的小车完整模型（图纸）
             'use_sim_time': use_sim_time,
         }],
     )
 
     # 调用 gazebo_ros 的 spawn_entity.py，把机器人实体真正生成到 Gazebo 世界中。
-    spawn_entity = Node(
-        package='gazebo_ros',
-        executable='spawn_entity.py',
-        name='spawn_rosorin',
-        output='screen',
-        arguments=[
-            '-entity', 'rosorin',
-            '-topic', 'robot_description',
-            '-x', x_pose,
-            '-y', y_pose,
-            '-z', z_pose,
-            '-Y', yaw,
+    # spawn_entity.py = 3D 打印机
+    # robot_description = 小车的打印图纸
+    # x/y/z/Y = 摆放小车的位置和朝向
+    spawn_entity = Node(  # 启动第三个核心程序
+        package='gazebo_ros', # ROS2 官方专门对接 Gazebo 的工具包 gazebo_ros
+        executable='spawn_entity.py', # 运行核心脚本：生成实体
+        name='spawn_rosorin', # 给程序起个名字，方便系统识别
+        output='screen', # 把日志打印到终端屏幕，出错了能看到
+        arguments=[ # 启动参数，包括小车名字，指定模型，出生点位置坐标及姿态
+            '-entity', 'rosorin', # 给小车起个名字
+            '-topic', 'robot_description', # 用哪个小车模型
+            '-x', x_pose,   # 传参 → 把机器人坐标系 x 坐标传给模型
+            '-y', y_pose,   # 传参 → 把机器人坐标系 y 坐标传给模型
+            '-z', z_pose,   # 传参 → 把机器人坐标系 z 坐标传给模型
+            '-Y', yaw,      # 传参 → 把机器人坐标系 yaw 传给模型，车头朝向（偏航角）
         ],
     )
 
