@@ -5,18 +5,28 @@
   <xacro:arg name="base_frame" default="base_footprint"/>
   <xacro:arg name="lidar_frame" default="lidar_frame"/>
     <xacro:include filename="$(find rosorin_description)/urdf/rosorin.xacro"/>
+
     <gazebo>
         <plugin name="gazebo_controller" filename="libgazebo_ros_planar_move.so">
-            <commandTopic>controller/cmd_vel</commandTopic>
-            <odometryTopic>odom</odometryTopic>
-            <odometryFrame>$(arg odom_frame)</odometryFrame>
-            <odometryRate>20.0</odometryRate>
-            <robotBaseFrame>$(arg base_frame)</robotBaseFrame>
+      <ros>
+        <remapping>cmd_vel:=controller/cmd_vel</remapping>
+        <remapping>odom:=odom</remapping>
+      </ros>
+      <update_rate>50.0</update_rate>
+      <publish_rate>20.0</publish_rate>
+      <publish_odom>true</publish_odom>
+      <publish_odom_tf>true</publish_odom_tf>
+      <odometry_frame>$(arg odom_frame)</odometry_frame>
+      <robot_base_frame>$(arg base_frame)</robot_base_frame>
+      <covariance_x>0.0001</covariance_x>
+      <covariance_y>0.0001</covariance_y>
+      <covariance_yaw>0.01</covariance_yaw>
         </plugin>
     </gazebo>
 
     <gazebo reference="lidar_sim_frame">
       <sensor type="ray" name="lidar">
+    <always_on>true</always_on>
         <pose>0 0 0 0 0 ${M_PI}</pose>
         <visualize>false</visualize>
         <update_rate>5</update_rate>
@@ -40,41 +50,28 @@
             <stddev>0.01</stddev>
           </noise>
         </ray>
-        <plugin name="gazebo_rplidar" filename="libgazebo_ros_laser.so">
-          <topicName>scan</topicName>
-          <frameName>$(arg lidar_frame)</frameName>
+        <plugin name="gazebo_rplidar" filename="libgazebo_ros_ray_sensor.so">
+          <ros>
+            <remapping>~/out:=scan_raw</remapping>
+          </ros>
+          <output_type>sensor_msgs/LaserScan</output_type>
+          <frame_name>$(arg lidar_frame)</frame_name>
         </plugin>
       </sensor>
     </gazebo>
 
-  <gazebo>
-    <plugin name="imu_plugin" filename="libgazebo_ros_imu.so">
-      <alwaysOn>true</alwaysOn>
-      <bodyName>imu_link</bodyName>
-      <frameName>imu_link</frameName>
-      <topicName>imu_data</topicName>
-      <serviceName>imu_service</serviceName>
-      <gaussianNoise>0.0</gaussianNoise>
-      <updateRate>0</updateRate>
-      <imu>
-        <noise>
-          <type>gaussian</type>
-          <rate>
-            <mean>0.0</mean>
-            <stddev>2e-4</stddev>
-            <bias_mean>0.0000075</bias_mean>
-            <bias_stddev>0.0000008</bias_stddev>
-          </rate>
-          <accel>
-            <mean>0.0</mean>
-            <stddev>1.7e-2</stddev>
-            <bias_mean>0.1</bias_mean>
-            <bias_stddev>0.001</bias_stddev>
-          </accel>
-        </noise>
-      </imu>
-    </plugin>
-  </gazebo>
+    <gazebo reference="imu_link">
+      <sensor name="imu_sensor" type="imu">
+        <always_on>true</always_on>
+        <update_rate>50</update_rate>
+        <visualize>false</visualize>
+        <plugin name="imu_plugin" filename="libgazebo_ros_imu_sensor.so">
+          <ros>
+            <remapping>~/out:=imu</remapping>
+          </ros>
+        </plugin>
+      </sensor>
+    </gazebo>
 
     <xacro:macro name="model_color" params="link_name color_name">
         <gazebo reference="${link_name}">

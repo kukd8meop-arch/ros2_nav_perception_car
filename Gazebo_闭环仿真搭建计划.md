@@ -31,11 +31,11 @@
 
 ### 2.2 已识别出的可复用仿真元素
 
-`rosorin.gazebo.xacro` 中已经定义了 Gazebo 插件，说明仓库作者原本就考虑过仿真扩展：
+`rosorin.gazebo.xacro` 中已经定义了 Gazebo 插件，说明仓库作者原本就考虑过仿真扩展。原始文件使用的是 ROS1 风格的插件名，在阶段 A/B 中已升级为 ROS2 Humble 兼容版本：
 
-- 平面运动插件：`libgazebo_ros_planar_move.so`
-- 激光插件：`libgazebo_ros_laser.so`
-- IMU 插件：`libgazebo_ros_imu.so`
+- 平面运动插件：`libgazebo_ros_planar_move.so`（ROS2 原生，无需更改）
+- 激光插件：`libgazebo_ros_laser.so` → 已升级为 `libgazebo_ros_ray_sensor.so`
+- IMU 插件：`libgazebo_ros_imu.so` → 已升级为 `libgazebo_ros_imu_sensor.so`
 
 这意味着：
 
@@ -204,6 +204,48 @@
 - `rosorin.gazebo.xacro` 的参数与 launch 中实际传入参数不一致
 - frame 名与现有导航要求不一致
 - 插件发布的话题名与现有工程配置不一致
+
+### 阶段 B 当前已完成记录
+
+本阶段已于 2026-03-10 全部验证通过，具体情况：
+
+**已完成的修改：**
+- 将 `rosorin.gazebo.xacro` 中的激光插件从 ROS1 风格 `libgazebo_ros_laser.so` 升级为 ROS2 `libgazebo_ros_ray_sensor.so`，并配置 `<output_type>sensor_msgs/LaserScan</output_type>`
+- 将 IMU 插件从 `libgazebo_ros_imu.so` 升级为 `libgazebo_ros_imu_sensor.so`
+- 为所有三个插件添加了 ROS2 风格的 `<ros>` 配置块（含 `<remapping>` 标签）
+- planar_move 插件配置了 `cmd_vel:=controller/cmd_vel` 和 `odom:=odom` 重映射
+
+**关键发现：**
+- `imu_link` 和 `lidar_sim_frame` 在 URDF 中没有 `<inertial>` 属性，URDF→SDF 转换时会被合并到 `base_footprint` link 中，但传感器定义会被正确保留
+- `planar_move` 插件是 lazy publisher — 只在收到第一条 `cmd_vel` 后才开始发布 `/odom` 话题
+
+**验证结果：**
+
+| 话题 | 消息类型 | frame_id | 状态 |
+|------|----------|----------|------|
+| `/scan_raw` | `sensor_msgs/LaserScan` | `lidar_frame` | ✅ 360 rays，空世界全 `.inf`，正常 |
+| `/imu` | `sensor_msgs/Imu` | `base_footprint` | ✅ z 轴加速度 = 9.8 m/s²，正常 |
+| `/odom` | `nav_msgs/Odometry` | `odom` → `base_footprint` | ✅ 发 cmd_vel 后位置随之变化 |
+| `/controller/cmd_vel` | 订阅端 | — | ✅ planar_move 正确订阅并响应 |
+| `/tf` | `tf2_msgs/TFMessage` | — | ✅ odom→base_footprint 由 planar_move 发布 |
+| `/tf_static` | `tf2_msgs/TFMessage` | — | ✅ 由 robot_state_publisher 发布 |
+| `/clock` | `rosgraph_msgs/Clock` | — | ✅ Gazebo 仿真时钟 |
+
+**ROS 节点验证：**
+- `/gazebo` — gzserver 主节点
+- `/gazebo_rplidar` — 激光传感器插件节点
+- `/imu_plugin` — IMU 传感器插件节点
+- `/robot_state_publisher` — TF 静态树
+- `/joint_state_publisher` — 关节状态
+
+**gzserver 已加载的插件库（通过 `/proc/<pid>/maps` 确认）：**
+- `libgazebo_ros_init.so` ✅
+- `libgazebo_ros_factory.so` ✅
+- `libgazebo_ros_force_system.so` ✅
+- `libgazebo_ros_ray_sensor.so` ✅
+- `libgazebo_ros_imu_sensor.so` ✅
+
+阶段 B 全部验收标准满足，可以继续进入阶段 C。
 
 ---
 
