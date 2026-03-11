@@ -76,6 +76,10 @@ def launch_setup(context):
     declare_use_teb_cmd = DeclareLaunchArgument(
         'use_teb', default_value='false')
 
+    declare_nav2_controller_param_cmd = DeclareLaunchArgument(
+        'nav2_controller_param', default_value='',
+        description='Override controller params file (empty = auto-select by use_teb)')
+
     bt_xml_path = os.path.join(
         navigation_package_path,
         'config',
@@ -91,7 +95,11 @@ def launch_setup(context):
         param_rewrites=param_substitutions,
         convert_types=True)
 
-    if use_teb == 'true':
+    # 优先使用外部传入的 controller 参数文件，否则按 use_teb 自动选择
+    nav2_controller_override = LaunchConfiguration('nav2_controller_param').perform(context)
+    if nav2_controller_override:
+        controller_param = nav2_controller_override
+    elif use_teb == 'true':
         controller_param = os.path.join(navigation_package_path, 'config/nav2_controller_teb.yaml')
     else:
         controller_param = os.path.join(navigation_package_path, 'config/nav2_controller_dwb.yaml')
@@ -161,6 +169,7 @@ def launch_setup(context):
             declare_autostart_cmd,
             declare_container_name_cmd,
             declare_use_teb_cmd,
+            declare_nav2_controller_param_cmd,
             load_composable_nodes]
 
 def generate_launch_description():

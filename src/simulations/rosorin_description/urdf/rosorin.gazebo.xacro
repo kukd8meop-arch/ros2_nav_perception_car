@@ -76,7 +76,6 @@
     <xacro:macro name="model_color" params="link_name color_name">
         <gazebo reference="${link_name}">
             <material>Gazebo/${color_name}</material>
-            <turnGravityOff>false</turnGravityOff>
         </gazebo>
     </xacro:macro>
 
@@ -87,5 +86,15 @@
     <xacro:model_color link_name="left_front_wheel_link"    color_name="black"/>
     <xacro:model_color link_name="right_back_wheel_link"    color_name="black"/>
     <xacro:model_color link_name="right_front_wheel_link"   color_name="black"/>
+
+    <!-- 关闭 base_footprint 和 base_link 的重力，由 planar_move 完全控制运动。
+         这样可以避免因为缺少独立轮子碰撞体导致的 Z 轴漂移问题。
+         放在 model_color 调用之后，确保不会被 fixed joint reduction 覆盖。 -->
+    <gazebo reference="base_footprint">
+        <gravity>false</gravity>
+    </gazebo>
+    <gazebo reference="base_link">
+        <gravity>false</gravity>
+    </gazebo>
 
 </robot>

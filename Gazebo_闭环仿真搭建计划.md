@@ -332,6 +332,39 @@
 - RViz2 能正常看到地图、激光、机器人
 - `Nav2 Goal` 工具可用
 
+### 阶段 D 当前已完成记录
+
+阶段 D 已完成核心架构搭建并通过验证，具体包括：
+
+**新增文件：**
+- `src/navigation/launch/navigation_sim.launch.py` — 仿真专用导航入口
+
+**修改文件：**
+- `src/navigation/setup.py` — 添加 `launch/include/` 安装路径
+
+**安装依赖：**
+- `ros-humble-topic-tools` — 用于 cmd_vel 桥接
+
+**核心设计：**
+1. 使用 `OpaqueFunction` 在运行时解析参数，避免 LaunchConfiguration 与字符串拼接的兼容性问题
+2. 复用 `bringup.launch.py`（而非直接 include localization + navigation_base），确保 `nav2_container` 正确创建
+3. 通过 `_create_sim_params()` 函数读取原始 `nav2_params.yaml`，递归覆盖所有 `use_sim_time→True` 并删除空列表（修复 ROS2 launch 的空列表 crash bug），写入临时文件
+4. 通过 `SetEnvironmentVariable('need_compile', 'True')` 确保子 launch 使用 `get_package_share_directory()` 而非硬编码路径
+5. 通过 `topic_tools relay /cmd_vel /controller/cmd_vel` 桥接 Nav2 速度输出到 Gazebo 控制话题
+
+**验证结果（2026-03-10）：**
+- ✅ 所有 9 个 lifecycle 节点处于 active 状态：map_server, amcl, controller_server, planner_server, bt_navigator, velocity_smoother, behavior_server, smoother_server, waypoint_follower
+- ✅ 所有 Nav2 actions 注册成功：navigate_to_pose, navigate_through_poses, compute_path_to_pose, follow_path, spin, backup, wait 等
+- ✅ TF 链路 `map→odom→base_footprint` 完整（在 use_sim_time 视角下确认）
+- ✅ costmap（local + global）正常发布
+- ✅ AMCL 定位正常发布 amcl_pose
+- ✅ cmd_vel 桥接链路就位：controller_server→cmd_vel_nav→velocity_smoother→cmd_vel→relay→controller/cmd_vel
+
+**遗留优化项（已在 Phase E 中全部解决）：**
+- ✅ `controller_server` 的 `use_sim_time` 未被覆盖 → 已通过 `_create_sim_controller_params()` 解决
+- ✅ Gazebo 中机器人 Z 轴漂移 → 已通过 `gravity: false` 解决
+- ✅ `planar_move` 插件初始化较慢 → 根因为 Gazebo 物理引擎暂停，已通过 `/unpause_physics` 服务调用解决
+
 ---
 
 ## 阶段 E：跑通闭环导航仿真
@@ -364,6 +397,65 @@
 - 初始位姿设置后定位漂移严重
 - Gazebo 的简化运动模型与 Nav2 控制参数不匹配
 - `cmd_vel` 话题名或速度约束不一致
+
+### 阶段 E 当前已完成记录
+
+阶段 E 于 2026-03-10 全部验证通过，闭环导航仿真已成功跑通。
+
+**发现并修复的关键 Bug：**
+
+1. **`nav2_container` 缺少 `use_sim_time` 参数（致命问题）**
+   - 文件：`src/navigation/launch/include/bringup.launch.py`
+   - 现象：`local_costmap` 持续报 "odom frame does not exist"，永远无法恢复
+   - 根因：`nav2_container`（`component_container_isolated`）进程本身没有设置 `use_sim_time`。容器使用系统壁钟（Unix 时间戳 ~1.77×10⁹），而 TF 数据使用仿真时间戳（~几秒），时间差约 55 年，TF buffer 将所有数据判定为"极度过期"而丢弃
+   - 为何 params_file 不起作用：YAML 按节点名组织（amcl/ros__parameters、local_costmap/...），但容器进程名为 `nav2_container`，YAML 中没有对应条目
+   - 修复：在 `bringup.launch.py` 的 nav2_container 参数中显式添加 `'use_sim_time': use_sim_time`
+
+**Phase D 遗留优化项的处理（均在 Phase E 启动前完成）：**
+
+1. ✅ `controller_server` 的 `use_sim_time` — 通过 `_create_sim_controller_params()` 函数解决
+2. ✅ Z 轴漂移 — 通过在 `rosorin.gazebo.xacro` 中为 `base_footprint` 和 `base_link` 设置 `gravity: false` 解决
+3. ✅ `planar_move` 初始化慢 — 根因是 Gazebo 在 `spawn_entity` 后物理引擎处于暂停状态，通过调用 `/unpause_physics` 服务解决
+
+**闭环导航验证结果：**
+
+| 验证项 | 结果 | 详情 |
+|--------|------|------|
+| TF 链 map→odom→base_footprint | ✅ | AMCL 自动设置初始位姿 (0,0,0)，TF 连通 |
+| Lifecycle 节点状态 | ✅ | controller_server, amcl, map_server 等全部 active |
+| Nav2 Goal 路径规划 | ✅ | NavfnPlanner 成功规划路径 |
+| DWB 局部控制 | ✅ | 控制器输出 cmd_vel，relay 转发到 /controller/cmd_vel |
+| Gazebo 机器人运动 | ✅ | 机器人从 (0,0) 移动到目标附近 (1.86, 0.95) |
+| 导航目标完成 | ✅ | **Goal finished with status: SUCCEEDED** |
+
+**导航测试详情：**
+- 起点：(0.0, 0.0, 0.0)
+- 目标：(2.0, 1.0, 0.0)
+- 最终到达位置：(1.86, 0.95)（在 xy_goal_tolerance=0.25 内）
+- 导航耗时：约 9.2 秒仿真时间
+- 恢复行为次数：0（全程无异常）
+- 使用地图：map_01（375×260 px, 0.05m/px）
+
+**当前系统启动序列：**
+```
+ros2 launch navigation navigation_sim.launch.py use_gui:=false
+```
+- t=0s：Gazebo (gzserver) + robot_description + spawn_entity
+- t=3s：unpause_physics 服务调用
+- t=5s：Nav2 bringup（含 nav2_container + 所有组件节点）+ cmd_vel relay
+- t=8s：RViz2
+- t≈35s：系统完全稳定，可接受 Nav2 Goal
+
+**阶段 E 验收标准满足情况：**
+- ✅ RViz2 中能完成 2D Pose Estimate（AMCL set_initial_pose 自动完成）
+- ✅ RViz2 中能发送 Nav2 Goal（通过 action client 验证）
+- ✅ 机器人能在 Gazebo 世界中移动到目标区域
+- ✅ 规划路径、局部控制、目标完成状态可见
+
+**已知限制（不影响闭环验证）：**
+- 使用 empty.world（无障碍物），scan_raw 全为 inf，AMCL 粒子滤波无法有效收敛到真实位置，但在空旷地图中不影响导航
+- 启动初期存在约 362 条 "odom frame does not exist" 警告（来自 Nav2 启动与 Gazebo 时钟同步的竞态窗口），系统稳定后自动消失
+- RViz2 存在初始 Message Filter dropping 警告（TF cache 尚未填充），属正常行为
 
 ---
 

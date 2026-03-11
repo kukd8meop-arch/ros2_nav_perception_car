@@ -26,6 +26,7 @@ def launch_setup(context):
     use_sim_time = LaunchConfiguration('use_sim_time')
     autostart = LaunchConfiguration('autostart')
     params_file = LaunchConfiguration('params_file')
+    nav2_controller_param = LaunchConfiguration('nav2_controller_param')
     log_level = LaunchConfiguration('log_level')
 
     remappings = [('/tf', 'tf'),
@@ -67,6 +68,10 @@ def launch_setup(context):
         'params_file', default_value=os.path.join(navigation_package_path, 'config/nav2_params.yaml')
     )
 
+    declare_nav2_controller_param_cmd = DeclareLaunchArgument(
+        'nav2_controller_param', default_value='',
+        description='Override controller params file path for simulation')
+
     declare_log_level_cmd = DeclareLaunchArgument(
         'log_level', default_value='info',
         description='log level')
@@ -81,7 +86,10 @@ def launch_setup(context):
             name='nav2_container',
             package='rclcpp_components',
             executable='component_container_isolated',
-            parameters=[params_file, {'autostart': autostart}],
+            parameters=[params_file, {
+                'autostart': autostart,
+                'use_sim_time': use_sim_time,
+            }],
             arguments=['--ros-args', '--log-level', log_level],
             remappings=remappings,
             output='screen'),
@@ -102,7 +110,8 @@ def launch_setup(context):
                               'use_sim_time': use_sim_time,
                               'autostart': autostart,
                               'params_file': params_file,
-                              'use_teb': use_teb}.items()),
+                              'use_teb': use_teb,
+                              'nav2_controller_param': nav2_controller_param}.items()),
     ])
 
     return [declare_rtabmap_cmd,
@@ -113,6 +122,7 @@ def launch_setup(context):
             declare_use_sim_time_cmd, 
             declare_autostart_cmd, 
             declare_params_file_cmd, 
+            declare_nav2_controller_param_cmd,
             declare_log_level_cmd,
             declare_use_teb_cmd,
             bringup_cmd_group]

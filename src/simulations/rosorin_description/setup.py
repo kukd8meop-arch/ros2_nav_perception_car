@@ -27,6 +27,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            'odom_to_tf = rosorin_description.odom_to_tf_node:main',
+            'scan_frame_fix = rosorin_description.scan_frame_fix_node:main',
         ],
     },
 )

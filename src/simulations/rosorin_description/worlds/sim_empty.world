@@ -1,6 +1,15 @@
 <?xml version="1.0" ?>
+<!-- sim_empty.world — 仿真专用轻量级空世界
+     =====================================
+     相比 empty.world 的改动：
+       • real_time_update_rate: 1000 → 100（降低 10 倍，避免 CPU 过载）
+       • max_step_size: 0.001 → 0.01（每步模拟 10ms，补偿降低的更新率）
+       • iters: 150 → 20（减少 ODE 求解器迭代次数）
+     效果：仿真精度略有降低（1 sim_s/s 等效步进），但 real-time factor 接近 100%，
+           /clock 和 /odom 正常发布，Nav2 能正常工作。
+-->
 <sdf version="1.6">
-  <world name="empty_world">
+  <world name="sim_empty_world">
     <include>
       <uri>model://ground_plane</uri>
     </include>
@@ -9,13 +18,13 @@
     </include>
     <gravity>0 0 -9.8</gravity>
     <physics type="ode">
-      <real_time_update_rate>1000.0</real_time_update_rate>
-      <max_step_size>0.001</max_step_size>
-      <real_time_factor>1.0</real_time_factor>
+      <real_time_update_rate>100</real_time_update_rate>
+      <max_step_size>0.01</max_step_size>
+      <real_time_factor>1</real_time_factor>
       <ode>
         <solver>
           <type>quick</type>
-          <iters>150</iters>
+          <iters>20</iters>
           <precon_iters>0</precon_iters>
           <sor>1.400000</sor>
           <use_dynamic_moi_rescaling>1</use_dynamic_moi_rescaling>
