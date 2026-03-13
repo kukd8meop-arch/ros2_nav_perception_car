@@ -3,8 +3,8 @@ sim_nav_full.launch.py — Gazebo + Nav2 + RViz2 完整闭环仿真启动
 ================================================================
 
 支持两种 Gazebo 后端（通过 use_gz 参数切换）：
-  - use_gz:=false  (默认)  → Gazebo Classic 11
-  - use_gz:=true           → Ignition Gazebo 6 (Fortress)
+  - use_gz:=true   (默认)  → Ignition Gazebo 6 (Fortress)
+  - use_gz:=false          → Gazebo Classic 11（已弃用，备用）
 
 数据流（闭环原理）
 ------------------

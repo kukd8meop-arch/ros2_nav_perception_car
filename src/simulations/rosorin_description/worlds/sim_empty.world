@@ -42,5 +42,91 @@
       <background>0.7 0.7 0.7 1</background>
       <shadows>true</shadows>
     </scene>
+
+    <!-- ================================================================
+         map_test 对应的 3D 墙体（与 src/slam/maps/map_test.pgm 布局一致）
+         坐标系：分辨率 0.05m/px，地图原点 (-5,-5)，10m x 10m 区域
+         墙高统一 1.0m
+    ================================================================ -->
+
+    <!-- 外围高墙 -->
+    <model name="wall_outer_left"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>0.25 10.0 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.25 10.0 1.0</size></box></geometry>
+        <material><script><name>Gazebo/Gray</name></script></material></visual>
+      <pose>-4.875 0.0 0.5 0 0 0</pose></link></model>
+
+    <model name="wall_outer_right"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>0.25 10.0 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.25 10.0 1.0</size></box></geometry>
+        <material><script><name>Gazebo/Gray</name></script></material></visual>
+      <pose>4.875 0.0 0.5 0 0 0</pose></link></model>
+
+    <model name="wall_outer_top"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>10.0 0.25 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>10.0 0.25 1.0</size></box></geometry>
+        <material><script><name>Gazebo/Gray</name></script></material></visual>
+      <pose>0.0 4.875 0.5 0 0 0</pose></link></model>
+
+    <model name="wall_outer_bottom"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>10.0 0.25 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>10.0 0.25 1.0</size></box></geometry>
+        <material><script><name>Gazebo/Gray</name></script></material></visual>
+      <pose>0.0 -4.875 0.5 0 0 0</pose></link></model>
+
+    <!-- L 形隔墙（左上） -->
+    <model name="wall_L_vert"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>0.25 2.3 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.25 2.3 1.0</size></box></geometry>
+        <material><script><name>Gazebo/Blue</name></script></material></visual>
+      <pose>-3.875 2.25 0.5 0 0 0</pose></link></model>
+
+    <model name="wall_L_horiz"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>2.0 0.25 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>2.0 0.25 1.0</size></box></geometry>
+        <material><script><name>Gazebo/Blue</name></script></material></visual>
+      <pose>-3.0 1.375 0.5 0 0 0</pose></link></model>
+
+    <!-- 水平隔断（中部，右侧留口） -->
+    <model name="wall_h_wall"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>6.05 0.25 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>6.05 0.25 1.0</size></box></geometry>
+        <material><script><name>Gazebo/Orange</name></script></material></visual>
+      <pose>-1.625 0.375 0.5 0 0 0</pose></link></model>
+
+    <!-- 方块障碍（右上） -->
+    <model name="wall_block_ur"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>1.5 1.5 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>1.5 1.5 1.0</size></box></geometry>
+        <material><script><name>Gazebo/Red</name></script></material></visual>
+      <pose>2.75 3.0 0.5 0 0 0</pose></link></model>
+
+    <!-- 竖向隔断（右侧，下方留口） -->
+    <model name="wall_v_wall_r"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>0.25 3.55 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.25 3.55 1.0</size></box></geometry>
+        <material><script><name>Gazebo/Orange</name></script></material></visual>
+      <pose>2.625 -1.875 0.5 0 0 0</pose></link></model>
+
+    <!-- 小方柱（中下） -->
+    <model name="wall_pillar_l"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>0.75 0.75 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.75 0.75 1.0</size></box></geometry>
+        <material><script><name>Gazebo/Green</name></script></material></visual>
+      <pose>-1.625 -1.875 0.5 0 0 0</pose></link></model>
+
+    <model name="wall_pillar_r"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>0.75 0.75 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.75 0.75 1.0</size></box></geometry>
+        <material><script><name>Gazebo/Green</name></script></material></visual>
+      <pose>-0.125 -1.875 0.5 0 0 0</pose></link></model>
+
+    <!-- 45° 斜墙 -->
+    <model name="wall_diagonal"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>3.2 0.25 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>3.2 0.25 1.0</size></box></geometry>
+        <material><script><name>Gazebo/Purple</name></script></material></visual>
+      <pose>-2.675 -1.75 0.5 0 0 0.7854</pose></link></model>
+
   </world>
 </sdf>

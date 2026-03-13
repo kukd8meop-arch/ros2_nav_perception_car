@@ -29,15 +29,37 @@ class OdomToTfNode(Node):
     def __init__(self):
         super().__init__('odom_to_tf')
         self.tf_broadcaster = TransformBroadcaster(self)
+        self._received_odom = False
+
         self.subscription = self.create_subscription(
             Odometry,
             '/odom',
             self.odom_callback,
             10,
         )
+
+        # 在收到第一条 /odom 之前，以 20Hz 持续发布 identity TF，
+        # 保证 "odom" frame 始终存在于 TF 树中，避免 Nav2 启动时
+        # 报 "Invalid frame ID odom - frame does not exist"
+        self._heartbeat_timer = self.create_timer(0.05, self._publish_identity_tf)
+
         self.get_logger().info('odom_to_tf 节点启动：订阅 /odom → 发布 odom→base_footprint TF')
 
+    def _publish_identity_tf(self):
+        """收到真实 /odom 前，持续发布 identity TF 填充 TF 树。"""
+        if self._received_odom:
+            self._heartbeat_timer.cancel()
+            return
+        t = TransformStamped()
+        t.header.stamp = self.get_clock().now().to_msg()
+        t.header.frame_id = 'odom'
+        t.child_frame_id = 'base_footprint'
+        t.transform.rotation.w = 1.0  # identity quaternion
+        self.tf_broadcaster.sendTransform(t)
+
     def odom_callback(self, msg: Odometry):
+        self._received_odom = True
+
         t = TransformStamped()
         t.header = msg.header  # frame_id = "odom", stamp = 仿真时间
         t.child_frame_id = msg.child_frame_id  # "base_footprint"
