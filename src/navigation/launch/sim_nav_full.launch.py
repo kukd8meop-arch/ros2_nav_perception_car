@@ -239,7 +239,10 @@ def launch_setup(context):
 
     if use_gz == 'true':
         # ── Ignition Gazebo 模式 ─────────────────────────────────────────
-        sim_world = os.path.join(desc_pkg, 'worlds', 'sim_empty_gz.sdf')
+        # 优先使用与地图同名的世界文件（如 map_test_gz.sdf），否则回退到默认
+        candidate_world = os.path.join(desc_pkg, 'worlds', map_name + '_gz.sdf')
+        sim_world = candidate_world if os.path.isfile(candidate_world) \
+            else os.path.join(desc_pkg, 'worlds', 'sim_empty_gz.sdf')
         gazebo_launch = IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
                 os.path.join(desc_pkg, 'launch', 'gazebo_gz.launch.py')
@@ -256,7 +259,10 @@ def launch_setup(context):
         )
     else:
         # ── Gazebo Classic 模式（原有逻辑） ──────────────────────────────
-        sim_world = os.path.join(desc_pkg, 'worlds', 'sim_empty.world')
+        # 优先使用与地图同名的世界文件（如 map_test.world），否则回退到默认
+        candidate_world = os.path.join(desc_pkg, 'worlds', map_name + '.world')
+        sim_world = candidate_world if os.path.isfile(candidate_world) \
+            else os.path.join(desc_pkg, 'worlds', 'sim_empty.world')
         gazebo_launch = IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
                 os.path.join(desc_pkg, 'launch', 'gazebo.launch.py')

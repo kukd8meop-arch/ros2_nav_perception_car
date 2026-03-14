@@ -1,18 +1,18 @@
 # 功能：
 #   ① 清理残留的 Gazebo / Nav2 / RViz2 进程
 #   ② source ROS2 + 工作空间环境
-#   ③ 启动 sim_nav_full.launch.py：
-#        Gazebo（含机器人模型）→ Nav2（AMCL + 规划 + 控制）→ RViz2
-#   ④ 在 RViz2 里点击 "Nav2 Goal" 即可指定目标点，
-#      Nav2 规划路径并通过 cmd_vel_relay 把速度指令写入
-#      Gazebo 的 /controller/cmd_vel，小车在 Gazebo 里同步移动。
+#   ③ 启动仿真导航（两种模式）：
+#        mode:=nav（默认）→ 预先加载地图 + AMCL 定位导航
+#        mode:=slam        → 无需地图，雷达实时建图 + Nav2 规划
+#   ④ 在 RViz2 里点击 "2D Nav Goal" 即可指定目标点
 #
 # 用法：
-#   bash sim_nav.sh                          # 默认地图 map_01，有 Gazebo GUI
-#   bash sim_nav.sh map:=map_02              # 切换地图
-#   bash sim_nav.sh use_gui:=false           # 关闭 Gazebo 可视化（节省资源）
-#   bash sim_nav.sh use_teb:=true            # 使用 TEB 局部控制器
-#   bash sim_nav.sh map:=map_02 use_gui:=false use_teb:=true
+#   bash sim_nav.sh                               # 预建图导航，默认地图 map_01
+#   bash sim_nav.sh map:=map_test                 # 切换地图
+#   bash sim_nav.sh mode:=slam                    # 实时建图模式（不加载预建地图）
+#   bash sim_nav.sh mode:=slam map:=map_test      # 建图模式 + 加载对应 Gazebo 世界
+#   bash sim_nav.sh use_gui:=false                # 关闭 Gazebo 可视化（节省资源）
+#   bash sim_nav.sh use_teb:=true                 # 使用 TEB 局部控制器
 #
 # 依赖：
 #   - ROS2 Humble（/opt/ros/humble/setup.bash 必须存在）
@@ -63,7 +63,10 @@ pkill -9 -f "rviz2" 2>/dev/null || true
 pkill -9 -f "relay" 2>/dev/null || true
 pkill -9 -f "odom_to_tf" 2>/dev/null || true
 pkill -9 -f "scan_frame_fix" 2>/dev/null || true
-sleep 1
+pkill -9 -f "slam_toolbox" 2>/dev/null || true
+pkill -9 -f "wait_for_gazebo" 2>/dev/null || true
+# 等待进程真正退出，避免 launch 检测到残留进程死亡触发 shutdown
+sleep 2
 ok "残留进程清理完毕"
 
 # ─── 步骤 2：source 环境 ─────────────────────────────────────────────────────
@@ -96,10 +99,10 @@ for PKG in navigation rosorin_description slam topic_tools; do
 done
 ok "所有必要包均已就绪"
 
-# ─── 步骤 4：启动仿真导航（双终端模式） ──────────────────────────────────────
-info "启动仿真闭环导航（双终端模式）..."
-info "  终端 1（当前）：Gazebo + Nav2"
-info "  终端 2（新窗口）：RViz2"
+# ─── 步骤 4：启动仿真导航（独立终端模式） ──────────────────────────────────────
+info "启动仿真闭环导航（独立终端模式）..."
+info "  新终端 1：Gazebo + Nav2"
+info "  新终端 2：RViz2（15s 后自动启动）"
 info "  在 RViz2 点击 '2D Nav Goal' 即可让小车运动"
 echo ""
 
@@ -133,22 +136,61 @@ ros2 run rviz2 rviz2 -d "${RVIZ_CONFIG}" --ros-args -p use_sim_time:=true
 RVIZ_EOF
 chmod +x "$RVIZ_SCRIPT"
 
-# ── 在新终端窗口中启动 RViz2 ─────────────────────────────────────────────────
+# ── Gazebo + Nav2 启动脚本（写入临时文件，供新终端执行） ─────────────────────
+# 解析 mode 参数，决定用哪个 launch 文件
+LAUNCH_MODE="nav"  # 默认预建图导航
+for arg in "$@"; do
+    if [[ "$arg" == "mode:=slam" ]]; then
+        LAUNCH_MODE="slam"
+    fi
+done
+
+if [[ "$LAUNCH_MODE" == "slam" ]]; then
+    LAUNCH_FILE="sim_slam_nav.launch.py"
+    info "模式：实时 SLAM 建图 + Nav2 规划（无预建地图）"
+else
+    LAUNCH_FILE="sim_nav_full.launch.py"
+    info "模式：预建图 AMCL 定位导航"
+fi
+
+# 过滤掉 mode:= 参数，避免传入 launch 文件（它不认识此参数）
+LAUNCH_ARGS=()
+for arg in "$@"; do
+    [[ "$arg" == mode:=* ]] && continue
+    LAUNCH_ARGS+=("$arg")
+done
+
+NAV_SCRIPT=$(mktemp /tmp/nav_launch_XXXXXX.sh)
+cat > "$NAV_SCRIPT" << NAV_EOF
+#!/usr/bin/env bash
+source /opt/ros/humble/setup.bash
+source ${WS_ROOT}/install/setup.bash
+echo "[Nav] 启动 Gazebo + Nav2（若异常退出请查看上方日志）..."
+ros2 launch navigation ${LAUNCH_FILE} launch_rviz:=false ${LAUNCH_ARGS[@]}
+echo ""
+echo "[Nav] launch 已退出（按 Enter 关闭此窗口）"
+read
+NAV_EOF
+chmod +x "$NAV_SCRIPT"
+
+# ── 在新终端窗口中分别启动 Gazebo+Nav2 和 RViz2 ────────────────────────────
 if [[ -n "$TERM_CMD" ]]; then
+    info "在新终端窗口中启动 Gazebo + Nav2..."
     info "在新终端窗口中启动 RViz2..."
     case "$TERM_CMD" in
         gnome-terminal)
+            gnome-terminal --title="Gazebo + Nav2" -- bash "$NAV_SCRIPT" &
             gnome-terminal --title="RViz2 - 仿真导航" -- bash "$RVIZ_SCRIPT" &
             ;;
         *)
+            $TERM_CMD -e "bash $NAV_SCRIPT" &
             $TERM_CMD -e "bash $RVIZ_SCRIPT" &
             ;;
     esac
 else
-    warn "未找到图形终端模拟器，RViz2 将在后台启动"
+    warn "未找到图形终端模拟器，Gazebo+Nav2 和 RViz2 将在后台启动"
+    bash "$NAV_SCRIPT" &
     bash "$RVIZ_SCRIPT" &
 fi
 
-# ── 当前终端启动 Gazebo + Nav2（不含 RViz2） ────────────────────────────────
-# launch_rviz:=false 告诉 launch 文件不要内部启动 RViz2
-exec ros2 launch navigation sim_nav_full.launch.py launch_rviz:=false "$@"
+ok "已在独立终端窗口中启动仿真，当前终端可以关闭。"

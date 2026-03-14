@@ -90,8 +90,8 @@
     <gravity>0 0 -9.8</gravity>
 
     <!-- ================================================================
-         空场地默认世界文件（无内部障碍物）
-         地图专用障碍物请使用对应的 <map_name>_gz.sdf
+         map_test 对应的3D墙体 (坐标由 map_test.pgm 连通域分析自动推导)
+         分辨率 0.05m/px，地图原点(-5,-5)，10mx10m区域，墙高 1.0m
     ================================================================ -->
 
     <!-- 外围高墙 (4面独立墙体) -->
@@ -118,6 +118,62 @@
       <visual name="v"><geometry><box><size>10.0 0.25 1.0</size></box></geometry>
         <material><ambient>0.4 0.4 0.4 1</ambient><diffuse>0.5 0.5 0.5 1</diffuse></material></visual>
       <pose>0.0 -4.875 0.5 0 0 0</pose></link></model>
+
+    <!-- 方块障碍物(右上) r1=25 c1=140 r2=55 c2=170 -->
+    <model name="wall_block_ur"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>1.5 1.5 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>1.5 1.5 1.0</size></box></geometry>
+        <material><ambient>0.8 0.2 0.2 1</ambient><diffuse>0.8 0.2 0.2 1</diffuse></material></visual>
+      <pose>2.75 3.0 0.5 0 0 0</pose></link></model>
+
+    <!-- L形隔墙(左上) 竖段:r1=32 c1=22 r2=78 c2=27 -->
+    <model name="wall_L_vert"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>0.25 2.3 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.25 2.3 1.0</size></box></geometry>
+        <material><ambient>0.2 0.4 0.8 1</ambient><diffuse>0.2 0.4 0.8 1</diffuse></material></visual>
+      <pose>-3.875 2.25 0.5 0 0 0</pose></link></model>
+
+    <!-- L形隔墙(左上) 横段:r1=73 c1=22 r2=78 c2=62 -->
+    <model name="wall_L_horiz"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>2.0 0.25 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>2.0 0.25 1.0</size></box></geometry>
+        <material><ambient>0.2 0.4 0.8 1</ambient><diffuse>0.2 0.4 0.8 1</diffuse></material></visual>
+      <pose>-3.0 1.375 0.5 0 0 0</pose></link></model>
+
+    <!-- 水平隔断 r1=90 c1=7 r2=95 c2=128 -->
+    <model name="wall_h_wall"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>6.05 0.25 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>6.05 0.25 1.0</size></box></geometry>
+        <material><ambient>0.8 0.4 0.2 1</ambient><diffuse>0.8 0.4 0.2 1</diffuse></material></visual>
+      <pose>-1.625 0.375 0.5 0 0 0</pose></link></model>
+
+    <!-- 竖向隔断(右) r1=102 c1=150 r2=173 c2=155 -->
+    <model name="wall_v_wall_r"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>0.25 3.55 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.25 3.55 1.0</size></box></geometry>
+        <material><ambient>0.8 0.4 0.2 1</ambient><diffuse>0.8 0.4 0.2 1</diffuse></material></visual>
+      <pose>2.625 -1.875 0.5 0 0 0</pose></link></model>
+
+    <!-- 45°斜墙 r1=112 c1=22 r2=158 c2=71 -->
+    <model name="wall_diagonal"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>3.2 0.25 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>3.2 0.25 1.0</size></box></geometry>
+        <material><ambient>0.6 0.2 0.8 1</ambient><diffuse>0.6 0.2 0.8 1</diffuse></material></visual>
+      <pose>-2.675 -1.75 0.5 0 0 0.7854</pose></link></model>
+
+    <!-- 小方柱左 r1=130 c1=60 r2=145 c2=75 -->
+    <model name="wall_pillar_l"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>0.75 0.75 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.75 0.75 1.0</size></box></geometry>
+        <material><ambient>0.2 0.7 0.2 1</ambient><diffuse>0.2 0.7 0.2 1</diffuse></material></visual>
+      <pose>-1.625 -1.875 0.5 0 0 0</pose></link></model>
+
+    <!-- 小方柱右 r1=130 c1=90 r2=145 c2=105 -->
+    <model name="wall_pillar_r"><static>true</static><link name="link">
+      <collision name="c"><geometry><box><size>0.75 0.75 1.0</size></box></geometry></collision>
+      <visual name="v"><geometry><box><size>0.75 0.75 1.0</size></box></geometry>
+        <material><ambient>0.2 0.7 0.2 1</ambient><diffuse>0.2 0.7 0.2 1</diffuse></material></visual>
+      <pose>-0.125 -1.875 0.5 0 0 0</pose></link></model>
 
   </world>
 </sdf>
