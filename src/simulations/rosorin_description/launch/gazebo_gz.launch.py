@@ -25,6 +25,7 @@ gazebo_gz.launch.py — Ignition Gazebo (gz-sim6 / Fortress) 仿真启动
 
 import os
 
+import launch
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import (
@@ -33,7 +34,7 @@ from launch.actions import (
     SetEnvironmentVariable,
 )
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import Command, LaunchConfiguration
+from launch.substitutions import Command, LaunchConfiguration, PythonExpression
 from launch_ros.actions import Node
 
 
@@ -101,9 +102,25 @@ def generate_launch_description():
             )
         ),
         launch_arguments={
+            'gz_args': [world, ' -r -s --headless-rendering'],
+            'on_exit_shutdown': 'true',
+        }.items(),
+        condition=launch.conditions.UnlessCondition(use_gui),
+    )
+
+    gz_sim_launch_gui = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(
+                get_package_share_directory('ros_gz_sim'),
+                'launch',
+                'gz_sim.launch.py',
+            )
+        ),
+        launch_arguments={
             'gz_args': [world, ' -r'],
             'on_exit_shutdown': 'true',
         }.items(),
+        condition=launch.conditions.IfCondition(use_gui),
     )
 
     # =========================================================================
@@ -258,7 +275,8 @@ def generate_launch_description():
         SetEnvironmentVariable('IGN_GAZEBO_RESOURCE_PATH', ign_resource_path),
 
         # 启动节点
-        gz_sim_launch,          # ① Ignition Gazebo
+        gz_sim_launch,          # ① Ignition Gazebo (headless, use_gui=false)
+        gz_sim_launch_gui,      # ① Ignition Gazebo (with GUI, use_gui=true)
         joint_state_publisher,  # ③ 关节状态
         robot_state_publisher,  # ③ 机器人状态 + TF
         spawn_entity,           # ④ 生成机器人

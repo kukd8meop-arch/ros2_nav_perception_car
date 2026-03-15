@@ -250,7 +250,7 @@ def launch_setup(context):
                 package='nav2_controller',
                 plugin='nav2_controller::ControllerServer',
                 name='controller_server',
-                parameters=[ctrl_yaml_sim],
+                parameters=[nav2_params_sim, ctrl_yaml_sim],
                 remappings=remappings + [('cmd_vel', 'cmd_vel_nav')]),
             ComposableNode(
                 package='nav2_smoother',
