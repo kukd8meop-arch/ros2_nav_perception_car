@@ -41,6 +41,8 @@ from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
+from launch_ros.descriptions import ComposableNode
+from launch_ros.actions import LoadComposableNodes
 
 
 # ─── 工具函数：给 yaml 注入 use_sim_time=true ─────────────────────────────────
@@ -51,10 +53,19 @@ def _patch_yaml_for_sim(src_path: str) -> str:
         if isinstance(d, dict):
             if 'ros__parameters' in d:
                 d['ros__parameters']['use_sim_time'] = True
-                # 修复 nav2 空列表序列化 bug
+                # 修复 nav2 空列表序列化 bug：
+                # LoadComposableNodes 不支持空 list（被转为 tuple()）
+                keys_to_fix = []
                 for k, v in d['ros__parameters'].items():
                     if v == ['']:
-                        d['ros__parameters'][k] = []
+                        keys_to_fix.append((k, []))
+                    elif isinstance(v, list) and len(v) == 0:
+                        keys_to_fix.append((k, None))  # 标记删除
+                for k, newv in keys_to_fix:
+                    if newv is None:
+                        del d['ros__parameters'][k]
+                    else:
+                        d['ros__parameters'][k] = newv
             for v in d.values():
                 _set_sim_time(v)
     _set_sim_time(cfg)
@@ -208,34 +219,88 @@ def launch_setup(context):
         ],
     )
 
-    # ── ④ Nav2：只启动规划+控制，不启动 AMCL/map_server ──────────────────
-    #    slam_toolbox 已经在发布 /map 和 map→odom TF，
-    #    Nav2 的 costmap 直接订阅 /map 即可
+    # ── ④ Nav2：直接内联启动规划+控制（不通过 bringup/navigation_base）───
+    #    slam_toolbox 已经在发布 /map 和 map→odom TF
+    #    避免 navigation_base.launch.py 内部 RewrittenYaml tuple 兼容性问题
+
+    nav2_container_name = 'nav2_container'
+    remappings = [('/tf', 'tf'), ('/tf_static', 'tf_static')]
+
+    bt_xml_path = os.path.join(nav_pkg, 'config', 'navigate_to_pose_minimal.xml')
+
     nav_container = Node(
-        name='nav2_container',
+        name=nav2_container_name,
         package='rclcpp_components',
         executable='component_container_isolated',
-        parameters=[nav2_params_sim, {
-            'autostart': True,
-            'use_sim_time': True,
-        }],
+        parameters=[nav2_params_sim, {'autostart': True, 'use_sim_time': True}],
         arguments=['--ros-args', '--log-level', 'info'],
-        remappings=[('/tf', 'tf'), ('/tf_static', 'tf_static')],
+        remappings=remappings,
         output='screen',
     )
 
-    nav_base_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(nav_pkg, 'launch', 'include', 'navigation_base.launch.py')),
-        launch_arguments={
-            'namespace':             '',
-            'use_namespace':         'false',
-            'use_sim_time':          'true',
-            'autostart':             'true',
-            'params_file':           nav2_params_sim,
-            'use_teb':               use_teb,
-            'nav2_controller_param': ctrl_yaml_sim,
-        }.items(),
+    lifecycle_nodes = [
+        'controller_server', 'smoother_server', 'planner_server',
+        'behavior_server', 'bt_navigator', 'waypoint_follower', 'velocity_smoother',
+    ]
+
+    load_nav2_nodes = LoadComposableNodes(
+        target_container=nav2_container_name,
+        composable_node_descriptions=[
+            ComposableNode(
+                package='nav2_controller',
+                plugin='nav2_controller::ControllerServer',
+                name='controller_server',
+                parameters=[ctrl_yaml_sim],
+                remappings=remappings + [('cmd_vel', 'cmd_vel_nav')]),
+            ComposableNode(
+                package='nav2_smoother',
+                plugin='nav2_smoother::SmootherServer',
+                name='smoother_server',
+                parameters=[nav2_params_sim],
+                remappings=remappings),
+            ComposableNode(
+                package='nav2_planner',
+                plugin='nav2_planner::PlannerServer',
+                name='planner_server',
+                parameters=[nav2_params_sim],
+                remappings=remappings),
+            ComposableNode(
+                package='nav2_behaviors',
+                plugin='behavior_server::BehaviorServer',
+                name='behavior_server',
+                parameters=[nav2_params_sim],
+                remappings=remappings),
+            ComposableNode(
+                package='nav2_bt_navigator',
+                plugin='nav2_bt_navigator::BtNavigator',
+                name='bt_navigator',
+                parameters=[nav2_params_sim, {
+                    'default_nav_to_pose_bt_xml': bt_xml_path,
+                }],
+                remappings=remappings),
+            ComposableNode(
+                package='nav2_waypoint_follower',
+                plugin='nav2_waypoint_follower::WaypointFollower',
+                name='waypoint_follower',
+                parameters=[nav2_params_sim],
+                remappings=remappings),
+            ComposableNode(
+                package='nav2_velocity_smoother',
+                plugin='nav2_velocity_smoother::VelocitySmoother',
+                name='velocity_smoother',
+                parameters=[nav2_params_sim],
+                remappings=remappings + [
+                    ('cmd_vel', 'cmd_vel_nav'), ('cmd_vel_smoothed', 'cmd_vel')]),
+            ComposableNode(
+                package='nav2_lifecycle_manager',
+                plugin='nav2_lifecycle_manager::LifecycleManager',
+                name='lifecycle_manager_navigation',
+                parameters=[{
+                    'use_sim_time': True,
+                    'autostart': True,
+                    'node_names': lifecycle_nodes,
+                }]),
+        ],
     )
 
     # ── ⑤ cmd_vel 转发 ────────────────────────────────────────────────────
@@ -261,9 +326,9 @@ def launch_setup(context):
     # ── 组装：Gazebo 就绪后同时启动 slam + Nav2 + relay ───────────────────
     on_ready = [
         slam_node,        # 建图（提供 /map 和 map→odom TF）
-        nav_container,    # Nav2 容器
-        TimerAction(period=3.0, actions=[nav_base_launch]),  # 等 slam 发布第一帧 /map
         cmd_vel_relay,
+        TimerAction(period=3.0, actions=[nav_container]),   # 先启动容器
+        TimerAction(period=5.0, actions=[load_nav2_nodes]), # 容器启动后加载 composable nodes
     ]
     if launch_rviz == 'true':
         on_ready.append(TimerAction(period=5.0, actions=[rviz_node]))
